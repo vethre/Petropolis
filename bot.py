@@ -11,7 +11,6 @@ from telegram.constants import ParseMode
 from telegram.ext import (ApplicationBuilder, CommandHandler, CallbackQueryHandler,
                           ContextTypes, MessageHandler, ConversationHandler, filters)
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import CallbackContext
 from keep_alive import keep_alive
 
 # Configure logging
@@ -58,7 +57,7 @@ DATA_FILE = "user_data.json"
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
-            with open("data.json", "r") as file:
+            with open(DATA_FILE, "r") as file:
                 return json.load(file)
         except (FileNotFoundError, json.JSONDecodeError):
             # If the file is not found or the JSON is broken, return a default structure
@@ -196,7 +195,7 @@ async def buy_egg_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
-async def hatch(update: Update, context: CallbackContext):
+async def hatch(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Display available eggs to hatch"""
     user_id = str(update.effective_user.id)
     data = load_data()
@@ -219,7 +218,7 @@ async def hatch(update: Update, context: CallbackContext):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("🥚 Выбери яйцо для раскрытия:", reply_markup=reply_markup)
 
-async def hatch_callback(update: Update, context: CallbackContext):
+async def hatch_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process egg hatching"""
     query = update.callback_query
     await query.answer()  # Await the answer to the callback query
@@ -259,7 +258,7 @@ async def hatch_callback(update: Update, context: CallbackContext):
         f"Этот питомец приносит {pet['coin_rate']} монет в час."
     )
 
-async def pets(update: Update, context: CallbackContext):
+async def pets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Display user's pets"""
     user_id = str(update.effective_user.id)
     data = load_data()
@@ -285,7 +284,7 @@ async def pets(update: Update, context: CallbackContext):
     
     await update.message.reply_text(f"🙈 Твои питомцы:\n\n{pet_list}")
 
-async def daily(update: Update, context: CallbackContext):
+async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Claim daily reward"""
     user_id = str(update.effective_user.id)
     data = load_data()
@@ -326,7 +325,7 @@ async def daily(update: Update, context: CallbackContext):
         f"💰 Твой баланс {data[user_id]['coins']} монет."
     )
 
-async def collect(update: Update, context: CallbackContext):
+async def collect(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Collect coins from pets"""
     user_id = str(update.effective_user.id)
     data = load_data()
@@ -364,7 +363,7 @@ async def collect(update: Update, context: CallbackContext):
     else:
         await update.message.reply_text("😁 Не спеши - денег нет, но ты держись.")
 
-async def merge(update: Update, context: CallbackContext):
+async def merge(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Merge pets to increase level"""
     user_id = str(update.effective_user.id)
     data = load_data()
@@ -389,7 +388,7 @@ async def merge(update: Update, context: CallbackContext):
         f"🐵 Твои питомцы:\n{pet_list}"
     )
 
-async def merge_pets(update: Update, context: CallbackContext):
+async def merge_pets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process pet merging"""
     user_id = str(update.effective_user.id)
     data = load_data()
@@ -497,7 +496,7 @@ def merge_pet_stats(pet1, pet2):
     
     return merged_pet
 
-async def train_pet(update: Update, context: CallbackContext):
+async def train_pet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process pet training"""
     user_id = str(update.effective_user.id)
     data = load_data()
