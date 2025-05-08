@@ -10,25 +10,11 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
 from telegram.ext import (ApplicationBuilder, CommandHandler, CallbackQueryHandler,
                           ContextTypes, MessageHandler, ConversationHandler, filters)
-from flask import Flask
-from threading import Thread
+from keep_alive import keep_alive
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
-
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "I'm alive!"
-
-def run():
-    app.run(host='0.0.0.0', port=8080)
-
-def keep_alive():
-    t = Thread(target=run)
-    t.start()
 
 
 TOKEN=os.getenv("TOKEN")
