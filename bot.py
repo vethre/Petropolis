@@ -17,6 +17,8 @@ from keep_alive import keep_alive
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
+# Храним временные трейды в памяти
+active_trades = {}  # {user_id: {"partner": partner_id, "offer": pet_index, "status": "waiting"|"confirmed"}}
 
 TOKEN=os.getenv("TOKEN")
 
@@ -554,6 +556,139 @@ async def train_pet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("Введи действительное число.")
 
+async def trade_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Напиши: /trade <user_id>")
+        return
+
+    partner_id = context.args[0]
+    user_id = str(update.effective_user.id)
+
+    if user_id == partner_id:
+        await update.message.reply_text("Ты не можешь торговать сам с собой.")
+        return
+
+    data = load_data()
+    if partner_id not in data:
+        await update.message.reply_text("Такой пользователь не найден.")
+        return
+
+    user_pets = data.get(user_id, {}).get("pets", [])
+    if not user_pets:
+        await update.message.reply_text("У тебя нет питомцев для обмена.")
+        return
+
+    # Выбор питомца
+    keyboard = []
+    for i, pet in enumerate(user_pets):
+        keyboard.append([
+            InlineKeyboardButton(f"{pet['name']} ({pet['rarity']})", callback_data=f"offer_{partner_id}_{i}")
+        ])
+
+    await update.message.reply_text(
+        f"Выбери питомца, которого ты хочешь предложить @{partner_id}:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def offer_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = str(query.from_user.id)
+    _, partner_id, pet_index = query.data.split("_")
+    pet_index = int(pet_index)
+
+    data = load_data()
+    user_data = data.get(user_id)
+    if pet_index >= len(user_data.get("pets", [])):
+        await query.edit_message_text("Неверный выбор питомца.")
+        return
+
+    active_trades[user_id] = {
+        "partner": partner_id,
+        "offer": pet_index,
+        "status": "waiting"
+    }
+
+    await query.edit_message_text("Предложение отправлено. Ожидаем ответа второго игрока.")
+
+    # Уведомим второго игрока
+    partner_data = data.get(partner_id)
+    offered_pet = user_data["pets"][pet_index]
+    await context.bot.send_message(
+        chat_id=int(partner_id),
+        text=f"Тебе предложили обмен: {offered_pet['name']} ({offered_pet['rarity']}). Хочешь предложить ответного питомца?\nНапиши /respond {user_id}"
+    )
+
+async def respond_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Напиши: /respond <user_id>")
+        return
+
+    proposer_id = context.args[0]
+    user_id = str(update.effective_user.id)
+
+    if proposer_id not in active_trades:
+        await update.message.reply_text("Нет активного предложения от этого пользователя.")
+        return
+
+    # Выбор ответного питомца
+    data = load_data()
+    user_pets = data.get(user_id, {}).get("pets", [])
+    if not user_pets:
+        await update.message.reply_text("У тебя нет питомцев для обмена.")
+        return
+
+    keyboard = []
+    for i, pet in enumerate(user_pets):
+        keyboard.append([
+            InlineKeyboardButton(f"{pet['name']} ({pet['rarity']})", callback_data=f"respond_{proposer_id}_{i}")
+        ])
+
+    await update.message.reply_text(
+        f"Выбери, какого питомца ты отдашь в обмен:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def respond_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = str(query.from_user.id)
+    _, proposer_id, pet_index = query.data.split("_")
+    pet_index = int(pet_index)
+
+    if proposer_id not in active_trades:
+        await query.edit_message_text("Предложение устарело.")
+        return
+
+    data = load_data()
+
+    # Данные обеих сторон
+    proposer_data = data.get(proposer_id)
+    responder_data = data.get(user_id)
+    trade = active_trades[proposer_id]
+
+    # Проверки
+    if trade["partner"] != user_id:
+        await query.edit_message_text("Это не твой трейд.")
+        return
+
+    # Обмен
+    proposer_pet = proposer_data["pets"].pop(trade["offer"])
+    responder_pet = responder_data["pets"].pop(pet_index)
+
+    proposer_data["pets"].append(responder_pet)
+    responder_data["pets"].append(proposer_pet)
+
+    save_data(data)
+    del active_trades[proposer_id]
+
+    # Подтверждения
+    await query.edit_message_text("Обмен успешно завершён! Питомцы поменялись.")
+    await context.bot.send_message(chat_id=int(proposer_id), text="Пользователь согласился! Питомцы обменяны.")
+
+
 
 # Main launcher
 if __name__ == '__main__':
@@ -569,6 +704,11 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("collect", collect))
     application.add_handler(CommandHandler("merge", merge_pets))
     application.add_handler(CommandHandler("train_pet", train_pet))
+    application.add_handler(CommandHandler("trade", trade_command))
+    application.add_handler(CommandHandler("respond", respond_command))
+    
+    application.add_handler(CallbackQueryHandler(offer_callback, pattern=r"^offer_"))
+    application.add_handler(CallbackQueryHandler(respond_callback, pattern=r"^respond_"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, merge_pets))
     application.add_handler(CallbackQueryHandler(hatch_callback, pattern="^hatch_"))
     application.add_handler(CallbackQueryHandler(buy_egg_callback, pattern="^buy_"))
