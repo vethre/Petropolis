@@ -735,6 +735,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("trade", trade_command))
     application.add_handler(CommandHandler("respond", respond_command))
     application.add_handler(CommandHandler("myid", myid_command))
+    application.add_handler(CommandHandler("cancel", cancel_command))
     
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), fallback_message))
     application.add_handler(CallbackQueryHandler(offer_callback, pattern=r"^offer_"))
