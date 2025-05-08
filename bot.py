@@ -508,7 +508,7 @@ async def train_pet(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Ensure the command has the correct number of arguments
     if not context.args or len(context.args) != 2:
-        user_states[user_id] = "merge"
+        user_states[user_id] = "train"
         await update.message.reply_text("‼ Введи число питомца и что нужно прокачать, то есть: /train_pet 1 attack")
         return
     user_states.pop(user_id, None)
@@ -712,9 +712,7 @@ async def fallback_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if state == "merge":
         await update.message.reply_text("Введите номера двух питомцев, например: /merge 1 2 или напишите /cancel")
     elif state == "train":
-        await update.message.reply_text("Введите номер питомца и количество прокачки: /train 1 3 или напишите /cancel")
-    elif state == "trade":
-        await update.message.reply_text("Вы находитесь в трейде. Используйте /cancel для отмены.")
+        await update.message.reply_text("Введите номер питомца и аргумент прокачки: /train 1 attack или напишите /cancel")
     else:
         await update.message.reply_text("Я не понял. Воспользуйся командами или напиши /help.")
 
