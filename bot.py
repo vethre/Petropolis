@@ -19,6 +19,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 # Храним временные трейды в памяти
 active_trades = {}  # {user_id: {"partner": partner_id, "offer": pet_index, "status": "waiting"|"confirmed"}}
+user_states = {}
 
 TOKEN=os.getenv("TOKEN")
 
@@ -396,9 +397,11 @@ async def merge_pets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = load_data()
     
     if not context.args or len(context.args) != 2:
+        user_states[user_id] = "merge"
         await update.message.reply_text("❗ Укажи, пожалуйста, двух питомцев, то есть: /merge 1 2")
         return
-    
+    user_states.pop(user_id, None)
+
     try:
         # Convert to zero-based indices
         pet1_idx = int(context.args[0]) - 1
@@ -505,9 +508,11 @@ async def train_pet(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Ensure the command has the correct number of arguments
     if not context.args or len(context.args) != 2:
+        user_states[user_id] = "merge"
         await update.message.reply_text("‼ Введи число питомца и что нужно прокачать, то есть: /train_pet 1 attack")
         return
-    
+    user_states.pop(user_id, None)
+
     try:
         # Convert to zero-based index
         pet_idx = int(context.args[0]) - 1
@@ -688,7 +693,30 @@ async def respond_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text("Обмен успешно завершён! Питомцы поменялись.")
     await context.bot.send_message(chat_id=int(proposer_id), text="Пользователь согласился! Питомцы обменяны.")
 
+async def myid_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    await update.message.reply_text(f"Твій Telegram ID: `{user_id}`", parse_mode=ParseMode.MARKDOWN)
 
+async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    user_states.pop(user_id, None)
+    active_trades.pop(user_id, None)
+    if hasattr(context.application, "pending_merges"):
+        context.application.pending_merges.pop(user_id, None)
+    await update.message.reply_text("Скасовано всі активні очікування дій.")
+
+async def fallback_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    state = user_states.get(user_id)
+
+    if state == "merge":
+        await update.message.reply_text("Введите номера двух питомцев, например: /merge 1 2 или напишите /cancel")
+    elif state == "train":
+        await update.message.reply_text("Введите номер питомца и количество прокачки: /train 1 3 или напишите /cancel")
+    elif state == "trade":
+        await update.message.reply_text("Вы находитесь в трейде. Используйте /cancel для отмены.")
+    else:
+        await update.message.reply_text("Я не понял. Воспользуйся командами или напиши /help.")
 
 # Main launcher
 if __name__ == '__main__':
@@ -706,7 +734,9 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("train_pet", train_pet))
     application.add_handler(CommandHandler("trade", trade_command))
     application.add_handler(CommandHandler("respond", respond_command))
+    application.add_handler(CommandHandler("myid", myid_command))
     
+    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), fallback_message))
     application.add_handler(CallbackQueryHandler(offer_callback, pattern=r"^offer_"))
     application.add_handler(CallbackQueryHandler(respond_callback, pattern=r"^respond_"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, merge_pets))
