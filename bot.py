@@ -57,8 +57,12 @@ DATA_FILE = "user_data.json"
 # Functions to load and save data
 def load_data():
     if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'r') as f:
-            return json.load(f)
+        try:
+            with open("data.json", "r") as file:
+                return json.load(file)
+        except (FileNotFoundError, json.JSONDecodeError):
+            # If the file is not found or the JSON is broken, return a default structure
+            return {}
     return {}
 
 def save_data(data):
