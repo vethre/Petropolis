@@ -15,6 +15,8 @@ from telegram.ext import (ApplicationBuilder, CommandHandler, CallbackQueryHandl
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
+TOKEN=os.getenv("TOKEN")
+
 # Constants
 PET_TYPES = ["Fire", "Water", "Earth", "Air", "Light", "Dark"]
 RARITIES = ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"]
@@ -542,7 +544,7 @@ async def train_pet(update: Update, context: CallbackContext):
 
 # Main launcher
 if __name__ == '__main__':
-    application = ApplicationBuilder().token("7509828870:AAEPvGR_C7Zjr1Ew8NlkxY1EeWthetiQ0JU").build()
+    application = ApplicationBuilder().token(TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
