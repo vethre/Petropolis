@@ -705,15 +705,22 @@ async def myid_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
+
     user_states.pop(user_id, None)
     active_trades.pop(user_id, None)
-    context.application.pending_merges.pop(user_id, None)
-    await update.message.reply_text("Скасовано всі активні дії. Тепер ти знову чистий, як совість програміста в дедлайн.")
+
+    if hasattr(context.application, "pending_merges"):
+        context.application.pending_merges.pop(user_id, None)
+
+    await update.message.reply_text("Скасовано всі активні дії. Ти вільний.")
 
 
 async def fallback_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     state = user_states.get(user_id)
+
+    if not state:
+        return
 
     if state == "merge":
         await update.message.reply_text("Введите номера двух питомцев, например: /merge 1 2 или напишите /cancel")
