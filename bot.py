@@ -42,7 +42,7 @@ RARITY_MULTIPLIERS = {
 }
 EGG_PRICES = {
     "Базовое": 250,
-    "Премиальное": 600,
+    "Премиум": 600,
     "Редкостное": 1350,
 }
 EGG_RARITY_BOOSTS = {
