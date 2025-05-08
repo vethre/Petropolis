@@ -397,10 +397,10 @@ async def merge_pets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = load_data()
     
     if not context.args or len(context.args) != 2:
+        application.pending_merges[user_id] = True
         user_states[user_id] = "merge"
         await update.message.reply_text("❗ Укажи, пожалуйста, двух питомцев, то есть: /merge 1 2")
         return
-    user_states.pop(user_id, None)
 
     try:
         # Convert to zero-based indices
@@ -453,6 +453,10 @@ async def merge_pets(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"❤️ {merged_pet['stats']['health']} | ⚡ {merged_pet['stats']['speed']}\n"
             f"😋 Монет приносит: {merged_pet['coin_rate']} монет/ч"
         )
+
+        application.pending_merges.pop(user_id, None)
+        user_states.pop(user_id, None)
+
         
     except ValueError:
         await update.message.reply_text("Введи дейвствительное число питомца.")
@@ -511,7 +515,7 @@ async def train_pet(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_states[user_id] = "train"
         await update.message.reply_text("‼ Введи число питомца и что нужно прокачать, то есть: /train_pet 1 attack")
         return
-    user_states.pop(user_id, None)
+    
 
     try:
         # Convert to zero-based index
@@ -557,6 +561,8 @@ async def train_pet(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{stat.capitalize()}: {old_value} → {pet['stats'][stat]} (+{pet['stats'][stat] - old_value})\n"
             f"💲 Теперь твой баланс {data[user_id]['coins']} монет."
         )
+
+        user_states.pop(user_id, None)
     
     except ValueError:
         await update.message.reply_text("Введи действительное число.")
@@ -701,9 +707,9 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     user_states.pop(user_id, None)
     active_trades.pop(user_id, None)
-    if hasattr(context.application, "pending_merges"):
-        context.application.pending_merges.pop(user_id, None)
-    await update.message.reply_text("Скасовано всі активні очікування дій.")
+    context.application.pending_merges.pop(user_id, None)
+    await update.message.reply_text("Скасовано всі активні дії. Тепер ти знову чистий, як совість програміста в дедлайн.")
+
 
 async def fallback_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -719,6 +725,7 @@ async def fallback_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Main launcher
 if __name__ == '__main__':
     application = ApplicationBuilder().token(TOKEN).build()
+    application.pending_merges = {}
     keep_alive()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
