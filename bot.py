@@ -10,10 +10,26 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
 from telegram.ext import (ApplicationBuilder, CommandHandler, CallbackQueryHandler,
                           ContextTypes, MessageHandler, ConversationHandler, filters)
+from flask import Flask
+from threading import Thread
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "I'm alive!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
 
 TOKEN=os.getenv("TOKEN")
 
@@ -545,7 +561,7 @@ async def train_pet(update: Update, context: CallbackContext):
 # Main launcher
 if __name__ == '__main__':
     application = ApplicationBuilder().token(TOKEN).build()
-
+    keep_alive()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("balance", balance))
