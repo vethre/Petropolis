@@ -163,9 +163,9 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def buy_egg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton(f"🥚 Базовое - {EGG_PRICES['Basic']} монет", callback_data="buy_Basic"),
-         InlineKeyboardButton(f"💠 Премиальное - {EGG_PRICES['Premium']} монет", callback_data="buy_Premium")],
-        [InlineKeyboardButton(f"🌟 Редкостное - {EGG_PRICES['Rare']} монет", callback_data="buy_Rare")],
+        [InlineKeyboardButton(f"🥚 Базовое - {EGG_PRICES['Базовое']} монет", callback_data="buy_Basic"),
+         InlineKeyboardButton(f"💠 Премиальное - {EGG_PRICES['Премиальное']} монет", callback_data="buy_Premium")],
+        [InlineKeyboardButton(f"🌟 Редкостное - {EGG_PRICES['Редкостное']} монет", callback_data="buy_Rare")],
     ]
     await update.message.reply_text("🎰 Выбери, какое яйцо купишь:", reply_markup=InlineKeyboardMarkup(keyboard))
 
