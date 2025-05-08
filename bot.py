@@ -10,6 +10,8 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
 from telegram.ext import (ApplicationBuilder, CommandHandler, CallbackQueryHandler,
                           ContextTypes, MessageHandler, ConversationHandler, filters)
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CallbackContext
 from keep_alive import keep_alive
 
 # Configure logging
@@ -20,33 +22,33 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 TOKEN=os.getenv("TOKEN")
 
 # Constants
-PET_TYPES = ["Fire", "Water", "Earth", "Air", "Light", "Dark"]
-RARITIES = ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"]
+PET_TYPES = ["Огненный", "Водный", "Земляной", "Воздушный", "Светлый", "Тёмный"]
+RARITIES = ["Обычный", "Необычный", "Редкостный", "Эпический", "Легендарный", "Мифический"]
 RARITY_CHANCES = {
-    "Common": 0.50,
-    "Uncommon": 0.30,
-    "Rare": 0.15,
-    "Epic": 0.04,
-    "Legendary": 0.009,
-    "Mythic": 0.001,
+    "Обычный": 0.50,
+    "Необычный": 0.30,
+    "Редкостный": 0.15,
+    "Эпический": 0.04,
+    "Легендарный": 0.009,
+    "Мифический": 0.001,
 }
 RARITY_MULTIPLIERS = {
-    "Common": 1,
-    "Uncommon": 2,
-    "Rare": 3,
-    "Epic": 5,
-    "Legendary": 10,
-    "Mythic": 20,
+    "Обычный": 2,
+    "Необычный": 4,
+    "Редкостный": 6,
+    "Эпический": 8,
+    "Легендарный": 12,
+    "Мифический": 22,
 }
 EGG_PRICES = {
-    "Basic": 100,
-    "Premium": 300,
-    "Rare": 1000,
+    "Базовое": 250,
+    "Премиальное": 600,
+    "Редкостное": 1350,
 }
 EGG_RARITY_BOOSTS = {
-    "Basic": 0,
-    "Premium": 0.10,
-    "Rare": 0.25,
+    "Базовое": 0,
+    "Премиальное": 0.10,
+    "Редкостное": 0.25,
 }
 
 # File to store user data
@@ -66,7 +68,7 @@ def save_data(data):
 # User init
 def initialize_user(user_id):
     return {
-        "coins": 200,
+        "coins": 450,
         "pets": [],
         "last_claim": None,
         "streak": 0,
@@ -76,24 +78,24 @@ def initialize_user(user_id):
 # Pet generation
 def determine_rarity(rarity_boost=0):
     roll = random.random() - rarity_boost
-    if roll < RARITY_CHANCES["Mythic"]:
-        return "Mythic"
-    elif roll < sum(RARITY_CHANCES[r] for r in ["Legendary", "Mythic"]):
-        return "Legendary"
-    elif roll < sum(RARITY_CHANCES[r] for r in ["Epic", "Legendary", "Mythic"]):
-        return "Epic"
-    elif roll < sum(RARITY_CHANCES[r] for r in ["Rare", "Epic", "Legendary", "Mythic"]):
-        return "Rare"
-    elif roll < sum(RARITY_CHANCES[r] for r in ["Uncommon", "Rare", "Epic", "Legendary", "Mythic"]):
-        return "Uncommon"
-    return "Common"
+    if roll < RARITY_CHANCES["Мифический"]:
+        return "Мифический"
+    elif roll < sum(RARITY_CHANCES[r] for r in ["Легендарный", "Мифический"]):
+        return "Легендарный"
+    elif roll < sum(RARITY_CHANCES[r] for r in ["Эпический", "Легендарный", "Мифический"]):
+        return "Эпический"
+    elif roll < sum(RARITY_CHANCES[r] for r in ["Редкостный", "Эпический", "Легендарный", "Мифический"]):
+        return "Редкостный"
+    elif roll < sum(RARITY_CHANCES[r] for r in ["Необычный", "Редкостный", "Эпический", "Легендарный", "Мифический"]):
+        return "Необычный"
+    return "Обычный"
 
 def generate_random_pet(pet_type=None, rarity_boost=0):
     if pet_type is None:
         pet_type = random.choice(PET_TYPES)
     rarity = determine_rarity(rarity_boost)
     multiplier = RARITY_MULTIPLIERS[rarity]
-    base_stats = random.randint(1, 5) * multiplier
+    base_stats = random.randint(5, 13) * multiplier
     return {
         "id": random.randint(10000, 99999),
         "name": f"{rarity} {pet_type}",
@@ -103,12 +105,12 @@ def generate_random_pet(pet_type=None, rarity_boost=0):
         "xp": 0,
         "xp_needed": 100,
         "stats": {
-            "attack": base_stats + random.randint(-2, 2),
-            "defense": base_stats + random.randint(-2, 2),
-            "health": base_stats * 2 + random.randint(-2, 2),
-            "speed": base_stats + random.randint(-2, 2),
+            "attack": base_stats + random.randint(-1, 4),
+            "defense": base_stats + random.randint(1, 5),
+            "health": base_stats * 2 + random.randint(5, 7),
+            "speed": base_stats + random.randint(1, 8),
         },
-        "coin_rate": 1 + (RARITY_MULTIPLIERS[rarity] // 2),
+        "coin_rate": 20 + (RARITY_MULTIPLIERS[rarity] // 2),
         "last_collected": None,
     }
 
@@ -119,29 +121,29 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id not in data:
         data[user_id] = initialize_user(user_id)
         save_data(data)
-        await update.message.reply_text("Welcome to Pet Adventure! You received 200 coins to start. Use /help to learn more.")
+        await update.message.reply_text("👋 Добро пожаловать в Петрополис! ВЫ получили 450 монет! Напиши /help_command для большей информации!")
     else:
-        await update.message.reply_text(f"Welcome back! You have {data[user_id]['coins']} coins. Use /help to see commands.")
+        await update.message.reply_text(f"👋 Привет опять! У тебя {data[user_id]['coins']} монет. Напиши /help_command для большей информации!")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
-        "<b>Pet Adventure Bot Commands:</b>\n\n"
-        "🥚 <b>Eggs & Pets</b>\n"
-        "/buy_egg - Buy eggs to hatch new pets\n"
-        "/hatch - Hatch eggs you've purchased\n"
-        "/pets - View your pet collection\n\n"
-        "💰 <b>Economy</b>\n"
-        "/collect - Collect coins from your pets\n"
-        "/daily - Claim daily reward\n"
-        "/balance - Check your coin balance\n\n"
-        "🔄 <b>Advancement</b>\n"
-        "/merge - Merge pets\n"
-        "/train - Train a pet\n\n"
-        "⚔️ <b>Battle</b>\n"
-        "/battle - Fight other players\n"
-        "/leaderboard - Top players\n\n"
-        "🤝 <b>Trading</b>\n"
-        "/trade - Trade pets"
+        "<b>Комманды Петрополиса:</b>\n\n"
+        "🥚 <b>Яйца & Питомцы</b>\n"
+        "/buy_egg - Купить яйцо\n"
+        "/hatch - Вскрыть купленное яйцо\n"
+        "/pets - Посмотреть свою коллекцию питомцев\n\n"
+        "💰 <b>Экономика</b>\n"
+        "/collect - Собрать доход с питомцев\n"
+        "/daily - Получить дневное вознаграждение\n"
+        "/balance - Посмотреть свой баланс\n\n"
+        "🔄 <b>Прогресс</b>\n"
+        "/merge (цифра первого питомца) (цифра второго) - Скрестить питомцев воедино\n"
+        "/train (цифра питомца по счету) (качество) - Тренировать питомца\n\n"
+        "⚔️ <b>Бой - в разработке</b>\n"
+        "/battle - Сражаться с другими\n"
+        "/leaderboard - Лидеры\n\n"
+        "🤝 <b>Трэйдинг - в разработке</b>\n"
+        "/trade - Обмен питомцами"
     )
     await update.message.reply_text(help_text, parse_mode=ParseMode.HTML)
 
@@ -153,15 +155,15 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id not in data:
         data[user_id] = initialize_user(user_id)
         save_data(data)
-    await update.message.reply_text(f"You have {data[user_id]['coins']} coins.")
+    await update.message.reply_text(f"У тебя {data[user_id]['coins']} монет.")
 
 async def buy_egg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton(f"🥚 Basic - {EGG_PRICES['Basic']} coins", callback_data="buy_Basic"),
-         InlineKeyboardButton(f"💠 Premium Egg - {EGG_PRICES['Premium']} coins", callback_data="buy_Premium")],
-        [InlineKeyboardButton(f"🌟 Rare Egg - {EGG_PRICES['Rare']} coins", callback_data="buy_Rare")],
+        [InlineKeyboardButton(f"🥚 Базовое - {EGG_PRICES['Basic']} монет", callback_data="buy_Basic"),
+         InlineKeyboardButton(f"💠 Премиальное - {EGG_PRICES['Premium']} монет", callback_data="buy_Premium")],
+        [InlineKeyboardButton(f"🌟 Редкостное - {EGG_PRICES['Rare']} монет", callback_data="buy_Rare")],
     ]
-    await update.message.reply_text("Select an egg to buy:", reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text("🎰 Выбери, какое яйцо купишь:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def buy_egg_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -174,7 +176,7 @@ async def buy_egg_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         data[user_id] = initialize_user(user_id)
 
     if data[user_id]["coins"] < EGG_PRICES[egg_type]:
-        await query.edit_message_text(f"Not enough coins for {egg_type} Egg.")
+        await query.edit_message_text(f"💸 Недостаточно средств для покупки яйца типа *{egg_type}*.")
         return
 
     if "eggs" not in data[user_id]:
@@ -186,10 +188,9 @@ async def buy_egg_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data[user_id]["coins"] -= EGG_PRICES[egg_type]
     save_data(data)
 
-    await query.edit_message_text(f"You bought a {egg_type} Egg for {EGG_PRICES[egg_type]} coins!\nUse /hatch to hatch it.")
+    await query.edit_message_text(f"🐣 Ты приобрел {egg_type} яйцо за {EGG_PRICES[egg_type]} монет!\nНапиши /hatch, чтобы раскрыть его.")
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import CallbackContext
+
 
 async def hatch(update: Update, context: CallbackContext):
     """Display available eggs to hatch"""
@@ -199,20 +200,20 @@ async def hatch(update: Update, context: CallbackContext):
     if user_id not in data:
         data[user_id] = initialize_user(user_id)
         save_data(data)
-        await update.message.reply_text("You don't have any eggs to hatch. Buy some with /buy_egg first!")
+        await update.message.reply_text("🥚 У тебя нет яиц для раскрывания. Купи используя комманду /buy_egg!")
         return
 
     if "eggs" not in data[user_id] or not data[user_id]["eggs"]:
-        await update.message.reply_text("You don't have any eggs to hatch. Buy some with /buy_egg first!")
+        await update.message.reply_text("🥚 У тебя нет яиц для раскрывания. Купи используя /buy_egg!")
         return
 
     keyboard = []
     for egg_type, count in data[user_id]["eggs"].items():
         if count > 0:
-            keyboard.append([InlineKeyboardButton(f"{egg_type} Egg ({count})", callback_data=f"hatch_{egg_type}")])
+            keyboard.append([InlineKeyboardButton(f"{egg_type} яйцо ({count})", callback_data=f"hatch_{egg_type}")])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Select an egg to hatch:", reply_markup=reply_markup)
+    await update.message.reply_text("🥚 Выбери яйцо для раскрытия:", reply_markup=reply_markup)
 
 async def hatch_callback(update: Update, context: CallbackContext):
     """Process egg hatching"""
@@ -226,11 +227,11 @@ async def hatch_callback(update: Update, context: CallbackContext):
 
     # Check if user data exists
     if user_id not in data or "eggs" not in data[user_id]:
-        await query.edit_message_text("You don't have any eggs to hatch.")
+        await query.edit_message_text("У тебя нет яиц для раскрытия.")
         return
 
     if egg_type not in data[user_id]["eggs"] or data[user_id]["eggs"][egg_type] <= 0:
-        await query.edit_message_text(f"You don't have any {egg_type} Eggs to hatch.")
+        await query.edit_message_text(f"😔 У тебя нет яиц типа *{egg_type}* для раскрытия.")
         return
 
     pet = generate_random_pet(rarity_boost=EGG_RARITY_BOOSTS[egg_type])
@@ -245,13 +246,13 @@ async def hatch_callback(update: Update, context: CallbackContext):
 
     # Send a message with the pet's details
     await query.edit_message_text(
-        f"🥚 Your {egg_type} Egg hatched into a {pet['rarity']} {pet['type']} pet!\n\n"
+        f"🥚 Из яйца типа {egg_type} вылупился {pet['rarity']} {pet['type']} питомец!\n\n"
         f"🆔 ID: {pet['id']}\n"
-        f"⚔️ Attack: {pet['stats']['attack']}\n"
-        f"🛡️ Defense: {pet['stats']['defense']}\n"
-        f"❤️ Health: {pet['stats']['health']}\n"
-        f"⚡ Speed: {pet['stats']['speed']}\n\n"
-        f"This pet generates {pet['coin_rate']} coins per hour."
+        f"⚔️ Атака: {pet['stats']['attack']}\n"
+        f"🛡️ Защита: {pet['stats']['defense']}\n"
+        f"❤️ Здоровье: {pet['stats']['health']}\n"
+        f"⚡ Скорость: {pet['stats']['speed']}\n\n"
+        f"Этот питомец приносит {pet['coin_rate']} монет в час."
     )
 
 async def pets(update: Update, context: CallbackContext):
@@ -262,23 +263,23 @@ async def pets(update: Update, context: CallbackContext):
     if user_id not in data:
         data[user_id] = initialize_user(user_id)
         save_data(data)
-        await update.message.reply_text("You don't have any pets yet. Buy and hatch eggs to get pets!")
+        await update.message.reply_text("У тебя пока нет питомцев. Купи и вскрой яйцо сначала!")
         return
     
     if "pets" not in data[user_id] or not data[user_id]["pets"]:
-        await update.message.reply_text("You don't have any pets yet. Buy and hatch eggs to get pets!")
+        await update.message.reply_text("У тебя пока нет питомцев. Купи и вскрой яйцо сначала!")
         return
     
     pet_list = ""
     for i, pet in enumerate(data[user_id]["pets"], 1):
         pet_list += (
-            f"{i}. {pet['name']} (ID: {pet['id']}) - Level {pet['level']}\n"
+            f"{i}. {pet['name']} (ID: {pet['id']}) - Уровень {pet['level']}\n"
             f"   ⚔️ {pet['stats']['attack']} | 🛡️ {pet['stats']['defense']} | "
             f"❤️ {pet['stats']['health']} | ⚡ {pet['stats']['speed']}\n"
-            f"   Generates {pet['coin_rate']} coins/hour\n\n"
+            f"   Приносит {pet['coin_rate']} монет/ч\n\n"
         )
     
-    await update.message.reply_text(f"Your Pets:\n\n{pet_list}")
+    await update.message.reply_text(f"🙈 Твои питомцы:\n\n{pet_list}")
 
 async def daily(update: Update, context: CallbackContext):
     """Claim daily reward"""
@@ -294,7 +295,7 @@ async def daily(update: Update, context: CallbackContext):
     # Check if 20 hours have passed since last claim
     if last_daily and current_time - last_daily < 20 * 3600:
         hours_left = int((20 * 3600 - (current_time - last_daily)) / 3600) + 1
-        await update.message.reply_text(f"You can claim your next daily reward in {hours_left} hours.")
+        await update.message.reply_text(f"🕰 Ты сможешь получить вознаграждение через {hours_left} ч.")
         return
     
     # Calculate streak
@@ -316,9 +317,9 @@ async def daily(update: Update, context: CallbackContext):
     save_data(data)
     
     await update.message.reply_text(
-        f"Daily reward claimed! +{total_reward} coins\n"
-        f"Current streak: {streak} days (+{streak_bonus} bonus)\n"
-        f"You now have {data[user_id]['coins']} coins."
+        f"🎁 Вознаграждение получено! +{total_reward} монет\n"
+        f"🔥 Текущий стрик: {streak} дн (+{streak_bonus} бонус)\n"
+        f"💰 Твой баланс {data[user_id]['coins']} монет."
     )
 
 async def collect(update: Update, context: CallbackContext):
@@ -329,11 +330,11 @@ async def collect(update: Update, context: CallbackContext):
     if user_id not in data:
         data[user_id] = initialize_user(user_id)
         save_data(data)
-        await update.message.reply_text("You don't have any pets to collect coins from.")
+        await update.message.reply_text("😶 У тебя нет питомцев, которые отдают дань.")
         return
     
     if "pets" not in data[user_id] or not data[user_id]["pets"]:
-        await update.message.reply_text("You don't have any pets to collect coins from.")
+        await update.message.reply_text("😶 У тебя нет питомцев, которые отдают дань.")
         return
     
     current_time = time.time()
@@ -355,9 +356,9 @@ async def collect(update: Update, context: CallbackContext):
     if total_coins > 0:
         data[user_id]["coins"] += total_coins
         save_data(data)
-        await update.message.reply_text(f"You collected {total_coins} coins from your pets! You now have {data[user_id]['coins']} coins.")
+        await update.message.reply_text(f"🐶 Ты собрал {total_coins} монет со своих питомцев! Твой баланс {data[user_id]['coins']} монет.")
     else:
-        await update.message.reply_text("No coins to collect yet. Wait a bit longer before collecting again.")
+        await update.message.reply_text("😁 Не спеши - денег нет, но ты держись.")
 
 async def merge(update: Update, context: CallbackContext):
     """Merge pets to increase level"""
@@ -367,11 +368,11 @@ async def merge(update: Update, context: CallbackContext):
     if user_id not in data:
         data[user_id] = initialize_user(user_id)
         save_data(data)
-        await update.message.reply_text("You don't have any pets to merge.")
+        await update.message.reply_text("У тебя нет питомцев для слияния.")
         return
     
     if "pets" not in data[user_id] or len(data[user_id]["pets"]) < 2:
-        await update.message.reply_text("You need at least 2 pets to merge them.")
+        await update.message.reply_text("Тебе нужно как минимум 2 питомца, чтобы скрестить их.")
         return
     
     # Display user's pets for merging
@@ -380,8 +381,8 @@ async def merge(update: Update, context: CallbackContext):
         pet_list += f"{i}. {pet['name']} (ID: {pet['id']}) - Level {pet['level']}\n"
     
     await update.message.reply_text(
-        f"To merge pets, send two pet numbers in this format: /merge 1 2\n\n"
-        f"Your Pets:\n{pet_list}"
+        f"➕ Для того, чтобы скрестить питомцев, укажи каких именно используя: /merge 1 2\n\n"
+        f"🐵 Твои питомцы:\n{pet_list}"
     )
 
 async def merge_pets(update: Update, context: CallbackContext):
@@ -390,7 +391,7 @@ async def merge_pets(update: Update, context: CallbackContext):
     data = load_data()
     
     if not context.args or len(context.args) != 2:
-        await update.message.reply_text("Please specify two pet numbers to merge, like: /merge 1 2")
+        await update.message.reply_text("❗ Укажи, пожалуйста, двух питомцев, то есть: /merge 1 2")
         return
     
     try:
@@ -399,21 +400,27 @@ async def merge_pets(update: Update, context: CallbackContext):
         pet2_idx = int(context.args[1]) - 1
         
         if pet1_idx == pet2_idx:
-            await update.message.reply_text("You can't merge a pet with itself!")
+            await update.message.reply_text("😡 Ты не можешь скрестить питомца с им же самим!")
             return
             
         pets = data[user_id]["pets"]
         
         if pet1_idx < 0 or pet1_idx >= len(pets) or pet2_idx < 0 or pet2_idx >= len(pets):
-            await update.message.reply_text("Invalid pet number.")
+            await update.message.reply_text("Некорректно введено число питомца.")
             return
         
         pet1 = pets[pet1_idx]
         pet2 = pets[pet2_idx]
         
+        merge_cost = 140 + 20 * (pet1["level"] + pet2["level"])  # Merging is more expensive with higher level pets
+    
+        if data[user_id]["coins"] < merge_cost:
+            update.message.reply_text(f"У тебя нет достаточно денег для скрещивания. Тебе надо {merge_cost} монет.")
+            return
+
         # Check if pets are of the same type
         if pet1["type"] != pet2["type"]:
-            await update.message.reply_text("You can only merge pets of the same type.")
+            await update.message.reply_text("‼ Ты можешь скрестить питомцев ТОЛЬКО одного вида.")
             return
         
         # Create the merged pet
@@ -432,15 +439,15 @@ async def merge_pets(update: Update, context: CallbackContext):
         save_data(data)
         
         await update.message.reply_text(
-            f"Successfully merged pets into a {merged_pet['name']}!\n\n"
-            f"Level: {merged_pet['level']}\n"
-            f"Stats: ⚔️ {merged_pet['stats']['attack']} | 🛡️ {merged_pet['stats']['defense']} | "
+            f"😎 Успешно скрещено питомца в {merged_pet['name']}!\n\n"
+            f"⏫ Уровень: {merged_pet['level']}\n"
+            f"Статистика: ⚔️ {merged_pet['stats']['attack']} | 🛡️ {merged_pet['stats']['defense']} | "
             f"❤️ {merged_pet['stats']['health']} | ⚡ {merged_pet['stats']['speed']}\n"
-            f"Coin rate: {merged_pet['coin_rate']} coins/hour"
+            f"😋 Монет приносит: {merged_pet['coin_rate']} монет/ч"
         )
         
     except ValueError:
-        await update.message.reply_text("Please enter valid pet numbers.")
+        await update.message.reply_text("Введи дейвствительное число питомца.")
 
 def merge_pet_stats(pet1, pet2):
     """Merge two pets' stats and potentially increase rarity"""
@@ -465,7 +472,7 @@ def merge_pet_stats(pet1, pet2):
     
     # Chance to increase rarity based on combined levels
     combined_level = pet1["level"] + pet2["level"]
-    rarity_chance = min(0.05 * combined_level, 0.5)  # Max 50% chance
+    rarity_chance = min(0.15 * combined_level, 0.55)  # Max 50% chance
     
     current_rarity_idx = rarities_order[base_pet["rarity"]]
     if current_rarity_idx < len(RARITIES) - 1 and random.random() < rarity_chance:
@@ -493,7 +500,7 @@ async def train_pet(update: Update, context: CallbackContext):
 
     # Ensure the command has the correct number of arguments
     if not context.args or len(context.args) != 2:
-        await update.message.reply_text("Please specify a pet number and stat to train, like: /train_pet 1 attack")
+        await update.message.reply_text("‼ Введи число питомца и что нужно прокачать, то есть: /train_pet 1 attack")
         return
     
     try:
@@ -503,25 +510,26 @@ async def train_pet(update: Update, context: CallbackContext):
         
         # Check if the stat is valid
         if stat not in ["attack", "defense", "health", "speed"]:
-            await update.message.reply_text("Invalid stat. Choose from: attack, defense, health, speed.")
+            await update.message.reply_text("😮 О чем ты?. Выбери одно из: attack, defense, health, speed.")
             return
 
-        # Check if the user has enough coins
-        if data[user_id]["coins"] < 50:
-            await update.message.reply_text("You need 50 coins to train a pet.")
+        training_cost = 80 + 10 * data[user_id]["pets"][pet_idx]["level"]  # Scaling cost based on pet level
+        
+        if data[user_id]["coins"] < training_cost:
+            await update.message.reply_text(f"⚠ Тебе надо {training_cost} монет для улучшения!")
             return
         
         pets = data[user_id]["pets"]
         
         # Check if the pet index is valid
         if pet_idx < 0 or pet_idx >= len(pets):
-            await update.message.reply_text("Invalid pet number.")
+            await update.message.reply_text("Неверное число питомца.")
             return
         
         pet = pets[pet_idx]
         
         # Increase the stat
-        increase = 1 + (RARITY_MULTIPLIERS[pet["rarity"]] // 3)
+        increase = 1 + (RARITY_MULTIPLIERS[pet["rarity"]] // 2)
         old_value = pet["stats"][stat]
         
         if stat == "health":
@@ -530,18 +538,18 @@ async def train_pet(update: Update, context: CallbackContext):
             pet["stats"][stat] += increase
             
         # Deduct coins for the training
-        data[user_id]["coins"] -= 50
+        data[user_id]["coins"] -= 100
         save_data(data)
         
         # Send feedback to the user
         await update.message.reply_text(
-            f"Trained {pet['name']}'s {stat}!\n"
+            f"🎉 Лвл {pet['name']} {stat} поднят!\n"
             f"{stat.capitalize()}: {old_value} → {pet['stats'][stat]} (+{pet['stats'][stat] - old_value})\n"
-            f"You now have {data[user_id]['coins']} coins."
+            f"💲 Теперь твой баланс {data[user_id]['coins']} монет."
         )
     
     except ValueError:
-        await update.message.reply_text("Please enter a valid pet number.")
+        await update.message.reply_text("Введи действительное число.")
 
 
 # Main launcher
