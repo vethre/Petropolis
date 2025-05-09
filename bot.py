@@ -25,7 +25,7 @@ user_states = {}
 load_dotenv()
 TOKEN=os.getenv("TOKEN")
 MONGO_URI=os.getenv("MONGO_URI")
-client = pymongo.MongoClient(MONGO_URI)
+client = pymongo.MongoClient(MONGO_URI, ssl=True, tls=True)
 db = client["petropolis"]
 users_collection = db["users"]
 
